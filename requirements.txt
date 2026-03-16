@@ -1,0 +1,8 @@
+streamlit
+mysql-connector-python
+python-dotenv
+pandas
+plotly
+streamlit-option-menu
+openai
+fpdf2
