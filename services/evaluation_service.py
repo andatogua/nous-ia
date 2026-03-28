@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from repositories.patient_repository import PatientRepository
 from repositories.questionnaire_repository import QuestionnaireRepository
 from repositories.evaluation_repository import EvaluationRepository
@@ -44,6 +45,42 @@ class EvaluationService:
             return "Bienestar medio", "El usuario presenta un nivel intermedio de bienestar emocional.", False, score_scaled
         else:
             return "Bienestar bajo", "El usuario presenta bajo bienestar emocional. Se recomienda seguimiento.", True, score_scaled
+
+    @staticmethod
+    def check_evaluation_availability(user_id):
+        patient = PatientRepository.get_patient_by_user_id(user_id)
+
+        if not patient:
+            return False, "No se encontró el paciente asociado al usuario.", None, None
+
+        last_evaluation = EvaluationRepository.get_last_completed_evaluation_by_patient(
+            patient["ID_PACIENTE"]
+        )
+
+        if not last_evaluation or not last_evaluation.get("FECHA_FIN"):
+            return True, "Puede realizar la evaluación.", None, 0
+
+        fecha_fin = last_evaluation["FECHA_FIN"]
+
+        if isinstance(fecha_fin, str):
+            try:
+                fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+
+        proxima_fecha = fecha_fin + timedelta(days=15)
+        ahora = datetime.now()
+
+        if ahora < proxima_fecha:
+            dias_restantes = (proxima_fecha.date() - ahora.date()).days
+            mensaje = (
+                f"Ya realizaste una evaluación recientemente. "
+                f"Podrás volver a realizarla desde el "
+                f"{proxima_fecha.strftime('%d/%m/%Y')}."
+            )
+            return False, mensaje, proxima_fecha, dias_restantes
+
+        return True, "Puede realizar la evaluación.", proxima_fecha, 0
 
     @staticmethod
     def save_single_evaluation(user_id, questionnaire_code, selected_answers):

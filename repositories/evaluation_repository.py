@@ -136,3 +136,39 @@ class EvaluationRepository:
             if cursor:
                 cursor.close()
             DatabaseConnection.close_connection(connection)
+
+    @staticmethod
+    def get_last_completed_evaluation_by_patient(id_paciente):
+        connection = DatabaseConnection.get_connection()
+
+        if not connection:
+            return None
+
+        cursor = None
+        try:
+            cursor = connection.cursor(dictionary=True)
+
+            query = """
+                SELECT
+                    ID_EVALUACION,
+                    ID_CUESTIONARIO,
+                    FECHA_FIN,
+                    ESTADO_EVALUACION
+                FROM TB_EVALUACIONES
+                WHERE ID_PACIENTE = %s
+                  AND ESTADO_EVALUACION = 'COMPLETADA'
+                ORDER BY FECHA_FIN DESC
+                LIMIT 1
+            """
+
+            cursor.execute(query, (id_paciente,))
+            return cursor.fetchone()
+
+        except Exception as e:
+            print(f"Error al obtener la última evaluación: {e}")
+            return None
+
+        finally:
+            if cursor:
+                cursor.close()
+            DatabaseConnection.close_connection(connection)

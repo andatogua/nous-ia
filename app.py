@@ -1,6 +1,7 @@
 import streamlit as st
 from ui.styles import load_styles
 from utils.session_manager import initialize_session
+from database.init_database import DatabaseInitializer
 
 
 def main():
@@ -9,6 +10,10 @@ def main():
         layout="wide",
         initial_sidebar_state="collapsed"
     )
+    print(st.session_state)
+    if 'db_initialized' not in st.session_state:
+        DatabaseInitializer.initialize()
+        st.session_state.db_initialized = True
 
     load_styles()
     initialize_session()

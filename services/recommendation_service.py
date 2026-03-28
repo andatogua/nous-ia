@@ -50,31 +50,35 @@ class RecommendationService:
         phq = latest_results["PHQ-9"]
         who = latest_results["WHO-5"]
 
-        # Convertir fecha emocional a string
         if latest_mood and latest_mood.get("FECHA_REGISTRO"):
             latest_mood["FECHA_REGISTRO"] = latest_mood["FECHA_REGISTRO"].isoformat()
 
         context_data = {
-            "edad": int(age) if age else None,
-
+            "usuario": {
+                "nombre": profile["NOMBRE"],
+                "apellido": profile["APELLIDO"],
+                "nombre_completo": f"{profile['NOMBRE']} {profile['APELLIDO']}"
+            },
+            "edad": int(age) if age is not None else None,
             "phq9": {
                 "puntaje_total": int(phq["PUNTAJE_TOTAL"]),
                 "nivel": phq["NIVEL_RESULTADO"],
                 "interpretacion": phq["INTERPRETACION"]
             },
-
             "who5": {
                 "puntaje_total": int(who["PUNTAJE_TOTAL"]),
                 "puntaje_escalado": float(who["PUNTAJE_ESCALADO"]),
                 "nivel": who["NIVEL_RESULTADO"],
                 "interpretacion": who["INTERPRETACION"]
             },
-
             "ultimo_estado_emocional": latest_mood
         }
 
         result = OpenAIService.generate_recommendations(context_data)
         recommendations = result.get("recomendaciones", [])
+
+        if not recommendations:
+            return False, "La IA no devolvió recomendaciones válidas.", []
 
         saved = []
         target_result_id = phq["ID_RESULTADO"]
@@ -82,15 +86,11 @@ class RecommendationService:
         for rec in recommendations:
             titulo = RecommendationService.clean_text(rec.get("titulo", ""))
             descripcion = RecommendationService.clean_text(rec.get("descripcion", ""))
-            actividad_diaria = RecommendationService.clean_text(rec.get("actividad_diaria", ""))
-            ejercicio_guiado = RecommendationService.clean_text(rec.get("ejercicio_guiado", ""))
-            meta_semanal = RecommendationService.clean_text(rec.get("meta_semanal", ""))
+            accion_sugerida = RecommendationService.clean_text(rec.get("accion_sugerida", ""))
 
             descripcion_completa = (
                 f"Descripción: {descripcion}\n\n"
-                f"Actividad diaria: {actividad_diaria}\n\n"
-                f"Ejercicio guiado: {ejercicio_guiado}\n\n"
-                f"Meta semanal: {meta_semanal}"
+                f"Acción sugerida: {accion_sugerida}"
             )
 
             ok, _ = RecommendationRepository.save_recommendation(
@@ -104,9 +104,10 @@ class RecommendationService:
                 saved.append({
                     "titulo": titulo,
                     "descripcion": descripcion,
-                    "actividad_diaria": actividad_diaria,
-                    "ejercicio_guiado": ejercicio_guiado,
-                    "meta_semanal": meta_semanal
+                    "accion_sugerida": accion_sugerida
                 })
+
+        if not saved:
+            return False, "No se pudieron guardar las recomendaciones generadas.", []
 
         return True, "Recomendaciones generadas correctamente.", saved
